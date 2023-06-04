@@ -1,5 +1,6 @@
 package com.example.qrcodescaner;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
@@ -15,11 +16,13 @@ import androidx.fragment.app.FragmentManager;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.media.Image;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Size;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -33,6 +36,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -45,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private PreviewView previewView;
     private MyImageAnalizer imageAnalizer;
+    private ActivityResultLauncher<Intent> actRestLauncherBarcodScan;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
         processCameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalysis);
     }
 
-    public static class MyImageAnalizer implements ImageAnalysis.Analyzer {
+    public class MyImageAnalizer implements ImageAnalysis.Analyzer {
         private final FragmentManager fragmentManager;
         private final bottom_dialog bd;
 
@@ -129,9 +134,7 @@ public class MainActivity extends AppCompatActivity {
             InputImage inputImage = InputImage.fromMediaImage(image1, image.getImageInfo().getRotationDegrees());
             BarcodeScannerOptions options =
                     new BarcodeScannerOptions.Builder()
-                            .setBarcodeFormats(
-                                    Barcode.FORMAT_QR_CODE,
-                                    Barcode.FORMAT_AZTEC)
+                            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
                             .build();
 
             BarcodeScanner scanner = BarcodeScanning.getClient();
@@ -171,6 +174,18 @@ public class MainActivity extends AppCompatActivity {
                 int valueType = barcode.getValueType();
                 // See API reference for complete list of supported types
                 switch (valueType) {
+                    case Barcode.TYPE_TEXT:
+                        byte[] bytes = barcode.getRawBytes();
+                        String text = new String(bytes, StandardCharsets.ISO_8859_1);
+                        Log.d("Barcode", text);
+                        Intent intent = new Intent();
+                        intent.putExtra("BarcodeData", text);
+                        setResult(RESULT_OK, intent);
+                        finish();
+                        break;
+                }
+                /*
+                switch (valueType) {
                     case Barcode.TYPE_WIFI:
                         String ssid = barcode.getWifi().getSsid();
                         String password = barcode.getWifi().getPassword();
@@ -185,6 +200,7 @@ public class MainActivity extends AppCompatActivity {
                         String url = barcode.getUrl().getUrl();
                         break;
                 }
+                 */
             }
         }
     }
